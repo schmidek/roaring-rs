@@ -10,6 +10,7 @@ mod util;
 mod cmp;
 mod inherent;
 mod iter;
+pub mod lazy;
 mod ops;
 mod serialization;
 

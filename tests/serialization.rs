@@ -1,5 +1,6 @@
 extern crate roaring;
 
+use roaring::bitmap::lazy::LazyRoaringBitmap;
 use roaring::RoaringBitmap;
 
 // Test data from https://github.com/RoaringBitmap/RoaringFormatSpec/tree/master/testdata
@@ -20,9 +21,24 @@ fn serialize_and_deserialize(bitmap: &RoaringBitmap) -> RoaringBitmap {
     RoaringBitmap::deserialize_from(&buffer[..]).unwrap()
 }
 
+fn serialize_and_lazy_deserialize(bitmap: &RoaringBitmap) -> RoaringBitmap {
+    let mut buffer = vec![];
+    bitmap.serialize_into(&mut buffer).unwrap();
+    assert_eq!(buffer.len(), bitmap.serialized_size());
+    LazyRoaringBitmap::deserialize_from(&buffer[..]).unwrap().load().unwrap()
+}
+
 #[test]
 fn test_deserialize_from_provided_data() {
     assert_eq!(RoaringBitmap::deserialize_from(BITMAP_WITHOUT_RUNS).unwrap(), test_data_bitmap());
+}
+
+#[test]
+fn test_lazy_deserialize_from_provided_data() {
+    assert_eq!(
+        LazyRoaringBitmap::deserialize_from(BITMAP_WITHOUT_RUNS).unwrap().load().unwrap(),
+        test_data_bitmap()
+    );
 }
 
 #[test]
@@ -69,6 +85,13 @@ fn test_bitmap_boundary() {
 }
 
 #[test]
+fn test_lazy_bitmap_boundary() {
+    let original = (1000..5097).collect::<RoaringBitmap>();
+    let new = serialize_and_lazy_deserialize(&original);
+    assert_eq!(original, new);
+}
+
+#[test]
 fn test_bitmap_high16bits() {
     let mut bitmap = RoaringBitmap::new();
     for i in 0..1 << 16 {
@@ -92,9 +115,23 @@ fn test_bitmap() {
 }
 
 #[test]
+fn test_lazy_bitmap() {
+    let original = (1000..6000).collect::<RoaringBitmap>();
+    let new = serialize_and_lazy_deserialize(&original);
+    assert_eq!(original, new);
+}
+
+#[test]
 fn test_arrays() {
     let original = (1000..3000).chain(70000..74000).collect::<RoaringBitmap>();
     let new = serialize_and_deserialize(&original);
+    assert_eq!(original, new);
+}
+
+#[test]
+fn test_lazy_arrays() {
+    let original = (1000..3000).chain(70000..74000).collect::<RoaringBitmap>();
+    let new = serialize_and_lazy_deserialize(&original);
     assert_eq!(original, new);
 }
 
@@ -106,9 +143,23 @@ fn test_bitmaps() {
 }
 
 #[test]
+fn test_lazy_bitmaps() {
+    let original = (1000..6000).chain(70000..77000).collect::<RoaringBitmap>();
+    let new = serialize_and_lazy_deserialize(&original);
+    assert_eq!(original, new);
+}
+
+#[test]
 fn test_mixed() {
     let original = (1000..3000).chain(70000..77000).collect::<RoaringBitmap>();
     let new = serialize_and_deserialize(&original);
+    assert_eq!(original, new);
+}
+
+#[test]
+fn test_lazy_mixed() {
+    let original = (1000..3000).chain(70000..77000).collect::<RoaringBitmap>();
+    let new = serialize_and_lazy_deserialize(&original);
     assert_eq!(original, new);
 }
 
@@ -528,5 +579,9 @@ fn test_strange() {
     ];
     let original = ARRAY.iter().cloned().collect::<RoaringBitmap>();
     let new = serialize_and_deserialize(&original);
+    assert_eq!(original, new);
+
+    let original = ARRAY.iter().cloned().collect::<RoaringBitmap>();
+    let new = serialize_and_lazy_deserialize(&original);
     assert_eq!(original, new);
 }
