@@ -1,7 +1,6 @@
 mod array_store;
 mod bitmap_store;
 
-use std::iter::Rev;
 use std::mem;
 use std::ops::{
     BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, RangeInclusive, Sub, SubAssign,
@@ -12,7 +11,7 @@ use self::bitmap_store::BITMAP_LENGTH;
 use self::Store::{Array, Bitmap};
 
 pub use self::array_store::ArrayStore;
-pub use self::bitmap_store::{BitmapIter, BitmapRevIter, BitmapStore};
+pub use self::bitmap_store::{BitmapIter, BitmapStore};
 
 #[derive(Clone)]
 pub enum Store {
@@ -25,11 +24,6 @@ pub enum Iter<'a> {
     Vec(vec::IntoIter<u16>),
     BitmapBorrowed(BitmapIter<&'a [u64; BITMAP_LENGTH]>),
     BitmapOwned(BitmapIter<Box<[u64; BITMAP_LENGTH]>>),
-}
-
-pub enum RevIter {
-    Vec(Rev<vec::IntoIter<u16>>),
-    BitmapOwned(BitmapRevIter<Box<[u64; BITMAP_LENGTH]>>),
 }
 
 impl Store {
@@ -156,13 +150,6 @@ impl Store {
         match self {
             Array(vec) => vec.select(n),
             Bitmap(bits) => bits.select(n),
-        }
-    }
-
-    pub fn into_rev_iter(self) -> RevIter {
-        match self {
-            Array(vec) => RevIter::Vec(vec.into_iter().rev()),
-            Bitmap(bits) => RevIter::BitmapOwned(bits.into_rev_iter()),
         }
     }
 }
@@ -457,17 +444,13 @@ impl<'a> Iterator for Iter<'a> {
     }
 }
 
-impl Iterator for RevIter {
-    type Item = u16;
-
-    fn next(&mut self) -> Option<u16> {
-        match *self {
-            RevIter::Vec(ref mut inner) => inner.next(),
-            RevIter::BitmapOwned(ref mut inner) => inner.next(),
+impl<'a> DoubleEndedIterator for Iter<'a> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        match self {
+            Iter::Array(inner) => inner.next_back().cloned(),
+            Iter::Vec(inner) => inner.next_back(),
+            Iter::BitmapBorrowed(inner) => inner.next_back(),
+            Iter::BitmapOwned(inner) => inner.next_back(),
         }
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        panic!("Should never be called (roaring::Iter caches the size_hint itself)")
     }
 }

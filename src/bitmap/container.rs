@@ -19,11 +19,6 @@ pub struct Iter<'a> {
     inner: store::Iter<'a>,
 }
 
-pub struct RevIter {
-    pub key: u16,
-    inner: store::RevIter,
-}
-
 impl Container {
     pub fn new(key: u16) -> Container {
         Container { key, store: Store::new() }
@@ -248,19 +243,9 @@ impl<'a> Iterator for Iter<'a> {
     }
 }
 
-impl Container {
-    pub fn into_rev_iter(self) -> RevIter {
-        RevIter { key: self.key, inner: self.store.into_rev_iter() }
-    }
-}
-
-impl<'a> Iterator for RevIter {
-    type Item = u32;
-    fn next(&mut self) -> Option<u32> {
-        self.inner.next().map(|i| util::join(self.key, i))
-    }
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        panic!("Should never be called (roaring::RevIter caches the size_hint itself)")
+impl<'a> DoubleEndedIterator for Iter<'a> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.inner.next_back().map(|i| util::join(self.key, i))
     }
 }
 
