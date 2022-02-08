@@ -1,8 +1,7 @@
-use std::iter::{self, FromIterator, Rev};
+use std::iter::{self, FromIterator};
 use std::{slice, vec};
 
 use super::container::Container;
-use crate::bitmap::container;
 use crate::{NonSortedIntegers, RoaringBitmap};
 
 /// An iterator for `RoaringBitmap`.
@@ -14,18 +13,6 @@ pub struct Iter<'a> {
 /// An iterator for `RoaringBitmap`.
 pub struct IntoIter {
     inner: iter::Flatten<vec::IntoIter<Container>>,
-    size_hint: u64,
-}
-
-type FlatMapRev = iter::FlatMap<
-    Rev<vec::IntoIter<Container>>,
-    container::RevIter,
-    fn(Container) -> container::RevIter,
->;
-
-/// A reverse iterator for `RoaringBitmap`.
-pub struct IntoRevIter {
-    inner: FlatMapRev,
     size_hint: u64,
 }
 
@@ -43,16 +30,6 @@ impl IntoIter {
     }
 }
 
-impl IntoRevIter {
-    fn new(containers: Vec<Container>) -> IntoRevIter {
-        let size_hint = containers.iter().map(|c| c.len()).sum();
-        IntoRevIter {
-            inner: containers.into_iter().rev().flat_map(|c| c.into_rev_iter()),
-            size_hint,
-        }
-    }
-}
-
 impl Iterator for Iter<'_> {
     type Item = u32;
 
@@ -67,6 +44,13 @@ impl Iterator for Iter<'_> {
         } else {
             (usize::MAX, None)
         }
+    }
+}
+
+impl DoubleEndedIterator for Iter<'_> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.size_hint = self.size_hint.saturating_sub(1);
+        self.inner.next_back()
     }
 }
 
@@ -94,27 +78,17 @@ impl Iterator for IntoIter {
     }
 }
 
+impl DoubleEndedIterator for IntoIter {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.size_hint = self.size_hint.saturating_sub(1);
+        self.inner.next_back()
+    }
+}
+
 #[cfg(target_pointer_width = "64")]
 impl ExactSizeIterator for IntoIter {
     fn len(&self) -> usize {
         self.size_hint as usize
-    }
-}
-
-impl Iterator for IntoRevIter {
-    type Item = u32;
-
-    fn next(&mut self) -> Option<u32> {
-        self.size_hint = self.size_hint.saturating_sub(1);
-        self.inner.next()
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        if self.size_hint < usize::MAX as u64 {
-            (self.size_hint as usize, Some(self.size_hint as usize))
-        } else {
-            (usize::MAX, None)
-        }
     }
 }
 
@@ -136,25 +110,6 @@ impl RoaringBitmap {
     /// ```
     pub fn iter(&self) -> Iter {
         Iter::new(&self.containers)
-    }
-
-    /// Iterator over each value stored in the RoaringBitmap, guarantees values are ordered by reverse value.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use roaring::RoaringBitmap;
-    /// use std::iter::FromIterator;
-    ///
-    /// let bitmap = (1..3).collect::<RoaringBitmap>();
-    /// let mut iter = bitmap.into_rev_iter();
-    ///
-    /// assert_eq!(iter.next(), Some(2));
-    /// assert_eq!(iter.next(), Some(1));
-    /// assert_eq!(iter.next(), None);
-    /// ```
-    pub fn into_rev_iter(self) -> IntoRevIter {
-        IntoRevIter::new(self.containers)
     }
 }
 
