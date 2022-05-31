@@ -8,6 +8,7 @@ use super::ArrayStore;
 pub const BITMAP_LENGTH: usize = 1024;
 
 #[derive(Clone, Eq, PartialEq)]
+#[cfg_attr(feature = "rkyv", derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize))]
 pub struct BitmapStore {
     len: u64,
     bits: Box<[u64; BITMAP_LENGTH]>,

@@ -34,6 +34,7 @@ pub use self::iter::Iter;
 /// println!("total bits set to true: {}", rb.len());
 /// ```
 #[derive(PartialEq)]
+#[cfg_attr(feature = "rkyv", derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize))]
 pub struct RoaringBitmap {
     containers: Vec<container::Container>,
 }

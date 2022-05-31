@@ -12,6 +12,7 @@ use std::ops::{BitAnd, BitAndAssign, BitOr, BitXor, RangeInclusive, Sub, SubAssi
 use super::bitmap_store::{bit, key, BitmapStore, BITMAP_LENGTH};
 
 #[derive(Clone, Eq, PartialEq)]
+#[cfg_attr(feature = "rkyv", derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize))]
 pub struct ArrayStore {
     vec: Vec<u16>,
 }

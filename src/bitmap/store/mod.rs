@@ -14,6 +14,7 @@ pub use self::array_store::ArrayStore;
 pub use self::bitmap_store::{BitmapIter, BitmapStore};
 
 #[derive(Clone)]
+#[cfg_attr(feature = "rkyv", derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize))]
 pub enum Store {
     Array(ArrayStore),
     Bitmap(BitmapStore),

@@ -19,6 +19,7 @@ license = "MIT OR Apache-2.0"
 bytemuck = "1.7.3"
 byteorder = "1.4.3"
 retain_mut = "0.1.6"
+rkyv = { version = "0.7", optional = true }
 
 [features]
 simd = []

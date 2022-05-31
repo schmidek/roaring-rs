@@ -9,6 +9,7 @@ use super::util;
 const ARRAY_LIMIT: u64 = 4096;
 
 #[derive(PartialEq, Clone)]
+#[cfg_attr(feature = "rkyv", derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize))]
 pub struct Container {
     pub key: u16,
     pub store: Store,
