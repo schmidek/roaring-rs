@@ -11,6 +11,9 @@ use std::ops::{BitAnd, BitAndAssign, BitOr, BitXor, RangeInclusive, Sub, SubAssi
 
 use super::bitmap_store::{bit, key, BitmapStore, BITMAP_LENGTH};
 
+#[cfg(feature = "rkyv")]
+use super::bitmap_store::ArchivedBitmapStore;
+
 #[derive(Clone, Eq, PartialEq)]
 #[cfg_attr(feature = "rkyv", derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize))]
 pub struct ArrayStore {
@@ -276,6 +279,22 @@ impl BitOr<Self> for &ArrayStore {
     }
 }
 
+#[cfg(feature = "rkyv")]
+impl BitOr<&ArchivedArrayStore> for &ArrayStore {
+    type Output = ArrayStore;
+
+    fn bitor(self, rhs: &ArchivedArrayStore) -> Self::Output {
+        #[allow(clippy::suspicious_arithmetic_impl)]
+        let capacity = self.vec.len() + rhs.vec.len();
+        let mut visitor = VecWriter::new(capacity);
+        #[cfg(feature = "simd")]
+        vector::or(self.as_slice(), rhs.as_slice(), &mut visitor);
+        #[cfg(not(feature = "simd"))]
+        scalar::or(self.as_slice(), rhs.as_slice(), &mut visitor);
+        ArrayStore::from_vec_unchecked(visitor.into_inner())
+    }
+}
+
 impl BitAnd<Self> for &ArrayStore {
     type Output = ArrayStore;
 
@@ -309,8 +328,36 @@ impl BitAndAssign<&Self> for ArrayStore {
     }
 }
 
+#[cfg(feature = "rkyv")]
+impl BitAndAssign<&ArchivedArrayStore> for ArrayStore {
+    #[allow(clippy::suspicious_op_assign_impl)]
+    fn bitand_assign(&mut self, rhs: &ArchivedArrayStore) {
+        #[cfg(feature = "simd")]
+        {
+            let mut visitor = VecWriter::new(self.vec.len().min(rhs.vec.len()));
+            vector::and(self.as_slice(), rhs.as_slice(), &mut visitor);
+            self.vec = visitor.into_inner()
+        }
+        #[cfg(not(feature = "simd"))]
+        {
+            let mut i = 0;
+            self.vec.retain(|x| {
+                i += rhs.iter().skip(i).position(|y| y >= x).unwrap_or(rhs.vec.len());
+                rhs.vec.get(i).map_or(false, |y| x == y)
+            });
+        }
+    }
+}
+
 impl BitAndAssign<&BitmapStore> for ArrayStore {
     fn bitand_assign(&mut self, rhs: &BitmapStore) {
+        self.vec.retain(|x| rhs.contains(*x));
+    }
+}
+
+#[cfg(feature = "rkyv")]
+impl BitAndAssign<&ArchivedBitmapStore> for ArrayStore {
+    fn bitand_assign(&mut self, rhs: &ArchivedBitmapStore) {
         self.vec.retain(|x| rhs.contains(*x));
     }
 }
@@ -377,6 +424,10 @@ impl ArchivedArrayStore {
 
     pub fn iter(&self) -> std::slice::Iter<u16> {
         self.vec.iter()
+    }
+
+    pub fn as_slice(&self) -> &[u16] {
+        &self.vec
     }
 }
 

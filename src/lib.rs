@@ -21,6 +21,9 @@ use std::fmt;
 /// A compressed bitmap using the [Roaring bitmap compression scheme](https://roaringbitmap.org/).
 pub mod bitmap;
 
+#[cfg(feature = "rkyv")]
+pub use bitmap::ArchivedRoaringBitmap;
+
 /// A compressed bitmap with u64 values.  Implemented as a `BTreeMap` of `RoaringBitmap`s.
 pub mod treemap;
 

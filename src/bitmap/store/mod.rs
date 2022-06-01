@@ -7,10 +7,16 @@ use std::ops::{
 };
 use std::{slice, vec};
 
+#[cfg(feature = "rkyv")]
+use rkyv::Deserialize;
+
 use self::bitmap_store::BITMAP_LENGTH;
 use self::Store::{Array, Bitmap};
 
 pub use self::array_store::ArrayStore;
+
+#[cfg(feature = "rkyv")]
+pub use self::array_store::ArchivedArrayStore;
 pub use self::bitmap_store::{BitmapIter, BitmapStore};
 
 #[derive(Clone)]
@@ -237,6 +243,29 @@ impl BitOrAssign<&Store> for Store {
     }
 }
 
+#[cfg(feature = "rkyv")]
+impl BitOrAssign<&ArchivedStore> for Store {
+    fn bitor_assign(&mut self, rhs: &ArchivedStore) {
+        match (self, rhs) {
+            (&mut Array(ref mut vec1), &ArchivedStore::Array(ref vec2)) => {
+                let this = mem::take(vec1);
+                *vec1 = BitOr::bitor(&this, vec2);
+            }
+            (&mut Bitmap(ref mut bits1), &ArchivedStore::Array(ref vec2)) => {
+                BitOrAssign::bitor_assign(bits1, vec2);
+            }
+            (&mut Bitmap(ref mut bits1), &ArchivedStore::Bitmap(ref bits2)) => {
+                BitOrAssign::bitor_assign(bits1, bits2);
+            }
+            (this @ &mut Array(..), &ArchivedStore::Bitmap(ref bits2)) => {
+                let mut lhs = Bitmap(bits2.deserialize(&mut rkyv::Infallible).unwrap());
+                BitOrAssign::bitor_assign(&mut lhs, &*this);
+                *this = lhs;
+            }
+        }
+    }
+}
+
 impl BitAnd<&Store> for &Store {
     type Output = Store;
 
@@ -303,6 +332,29 @@ impl BitAndAssign<&Store> for Store {
             }
             (this @ &mut Bitmap(..), &Array(..)) => {
                 let mut new = rhs.clone();
+                BitAndAssign::bitand_assign(&mut new, &*this);
+                *this = new;
+            }
+        }
+    }
+}
+
+#[cfg(feature = "rkyv")]
+impl BitAndAssign<&ArchivedStore> for Store {
+    #[allow(clippy::suspicious_op_assign_impl)]
+    fn bitand_assign(&mut self, rhs: &ArchivedStore) {
+        match (self, rhs) {
+            (&mut Array(ref mut vec1), &ArchivedStore::Array(ref vec2)) => {
+                BitAndAssign::bitand_assign(vec1, vec2);
+            }
+            (&mut Bitmap(ref mut bits1), &ArchivedStore::Bitmap(ref bits2)) => {
+                BitAndAssign::bitand_assign(bits1, bits2);
+            }
+            (&mut Array(ref mut vec1), &ArchivedStore::Bitmap(ref bits2)) => {
+                BitAndAssign::bitand_assign(vec1, bits2);
+            }
+            (this @ &mut Bitmap(..), &ArchivedStore::Array(..)) => {
+                let mut new = rhs.deserialize(&mut rkyv::Infallible).unwrap();
                 BitAndAssign::bitand_assign(&mut new, &*this);
                 *this = new;
             }

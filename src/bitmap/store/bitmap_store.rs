@@ -5,6 +5,9 @@ use std::ops::{BitAndAssign, BitOrAssign, BitXorAssign, RangeInclusive, SubAssig
 
 use super::ArrayStore;
 
+#[cfg(feature = "rkyv")]
+use super::ArchivedArrayStore;
+
 pub const BITMAP_LENGTH: usize = 1024;
 
 #[derive(Clone, Eq, PartialEq)]
@@ -393,9 +396,30 @@ fn op_bitmaps(bits1: &mut BitmapStore, bits2: &BitmapStore, op: impl Fn(&mut u64
     }
 }
 
+#[cfg(feature = "rkyv")]
+#[inline]
+fn op_archived_bitmaps(
+    bits1: &mut BitmapStore,
+    bits2: &ArchivedBitmapStore,
+    op: impl Fn(&mut u64, u64),
+) {
+    bits1.len = 0;
+    for (index1, &index2) in bits1.bits.iter_mut().zip(bits2.bits.iter()) {
+        op(index1, index2);
+        bits1.len += index1.count_ones() as u64;
+    }
+}
+
 impl BitOrAssign<&Self> for BitmapStore {
     fn bitor_assign(&mut self, rhs: &Self) {
         op_bitmaps(self, rhs, BitOrAssign::bitor_assign);
+    }
+}
+
+#[cfg(feature = "rkyv")]
+impl BitOrAssign<&ArchivedBitmapStore> for BitmapStore {
+    fn bitor_assign(&mut self, rhs: &ArchivedBitmapStore) {
+        op_archived_bitmaps(self, rhs, BitOrAssign::bitor_assign);
     }
 }
 
@@ -411,9 +435,29 @@ impl BitOrAssign<&ArrayStore> for BitmapStore {
     }
 }
 
+#[cfg(feature = "rkyv")]
+impl BitOrAssign<&ArchivedArrayStore> for BitmapStore {
+    fn bitor_assign(&mut self, rhs: &ArchivedArrayStore) {
+        for &index in rhs.iter() {
+            let (key, bit) = (key(index), bit(index));
+            let old_w = self.bits[key];
+            let new_w = old_w | 1 << bit;
+            self.len += (old_w ^ new_w) >> bit;
+            self.bits[key] = new_w;
+        }
+    }
+}
+
 impl BitAndAssign<&Self> for BitmapStore {
     fn bitand_assign(&mut self, rhs: &Self) {
         op_bitmaps(self, rhs, BitAndAssign::bitand_assign);
+    }
+}
+
+#[cfg(feature = "rkyv")]
+impl BitAndAssign<&ArchivedBitmapStore> for BitmapStore {
+    fn bitand_assign(&mut self, rhs: &ArchivedBitmapStore) {
+        op_archived_bitmaps(self, rhs, BitAndAssign::bitand_assign);
     }
 }
 
@@ -465,5 +509,9 @@ impl ArchivedBitmapStore {
 
     pub fn iter(&self) -> BitmapIter<&[u64; BITMAP_LENGTH]> {
         BitmapIter::new(&self.bits)
+    }
+
+    pub fn contains(&self, index: u16) -> bool {
+        self.bits[key(index)] & (1 << bit(index)) != 0
     }
 }

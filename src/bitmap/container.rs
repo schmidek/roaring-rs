@@ -160,6 +160,14 @@ impl BitOrAssign<&Container> for Container {
     }
 }
 
+#[cfg(feature = "rkyv")]
+impl BitOrAssign<&ArchivedContainer> for Container {
+    fn bitor_assign(&mut self, rhs: &ArchivedContainer) {
+        BitOrAssign::bitor_assign(&mut self.store, &rhs.store);
+        self.ensure_correct_store();
+    }
+}
+
 impl BitAnd<&Container> for &Container {
     type Output = Container;
 
@@ -180,6 +188,14 @@ impl BitAndAssign<Container> for Container {
 
 impl BitAndAssign<&Container> for Container {
     fn bitand_assign(&mut self, rhs: &Container) {
+        BitAndAssign::bitand_assign(&mut self.store, &rhs.store);
+        self.ensure_correct_store();
+    }
+}
+
+#[cfg(feature = "rkyv")]
+impl BitAndAssign<&ArchivedContainer> for Container {
+    fn bitand_assign(&mut self, rhs: &ArchivedContainer) {
         BitAndAssign::bitand_assign(&mut self.store, &rhs.store);
         self.ensure_correct_store();
     }

@@ -7,6 +7,12 @@ use crate::bitmap::container::Container;
 use crate::bitmap::Pairs;
 use crate::RoaringBitmap;
 
+#[cfg(feature = "rkyv")]
+use rkyv::Deserialize;
+
+#[cfg(feature = "rkyv")]
+use crate::ArchivedRoaringBitmap;
+
 impl RoaringBitmap {
     /// Computes the len of the intersection with the specified other bitmap without creating a
     /// new bitmap.
@@ -183,6 +189,22 @@ impl BitOrAssign<&RoaringBitmap> for RoaringBitmap {
     }
 }
 
+#[cfg(feature = "rkyv")]
+impl BitOrAssign<&ArchivedRoaringBitmap> for RoaringBitmap {
+    /// An `union` between two sets.
+    fn bitor_assign(&mut self, rhs: &ArchivedRoaringBitmap) {
+        for container in rhs.containers.iter() {
+            let key = container.key;
+            match self.containers.binary_search_by_key(&key, |c| c.key) {
+                Err(loc) => self
+                    .containers
+                    .insert(loc, container.deserialize(&mut rkyv::Infallible).unwrap()),
+                Ok(loc) => BitOrAssign::bitor_assign(&mut self.containers[loc], container),
+            }
+        }
+    }
+}
+
 impl BitAnd<RoaringBitmap> for RoaringBitmap {
     type Output = RoaringBitmap;
 
@@ -258,6 +280,23 @@ impl BitAndAssign<RoaringBitmap> for RoaringBitmap {
 impl BitAndAssign<&RoaringBitmap> for RoaringBitmap {
     /// An `intersection` between two sets.
     fn bitand_assign(&mut self, rhs: &RoaringBitmap) {
+        RetainMut::retain_mut(&mut self.containers, |cont| {
+            let key = cont.key;
+            match rhs.containers.binary_search_by_key(&key, |c| c.key) {
+                Ok(loc) => {
+                    BitAndAssign::bitand_assign(cont, &rhs.containers[loc]);
+                    cont.len() != 0
+                }
+                Err(_) => false,
+            }
+        })
+    }
+}
+
+#[cfg(feature = "rkyv")]
+impl BitAndAssign<&ArchivedRoaringBitmap> for RoaringBitmap {
+    /// An `intersection` between two sets.
+    fn bitand_assign(&mut self, rhs: &ArchivedRoaringBitmap) {
         RetainMut::retain_mut(&mut self.containers, |cont| {
             let key = cont.key;
             match rhs.containers.binary_search_by_key(&key, |c| c.key) {

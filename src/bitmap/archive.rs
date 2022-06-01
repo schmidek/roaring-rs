@@ -1,7 +1,7 @@
 use crate::bitmap::container::ArchivedContainer;
 use crate::bitmap::store::ArchivedStore;
 use crate::bitmap::ArchivedRoaringBitmap;
-use std::{iter, slice, vec};
+use std::{iter, slice};
 
 /// An iterator for `ArchivedRoaringBitmap`.
 pub struct Iter<'a> {
@@ -36,6 +36,14 @@ impl Iterator for Iter<'_> {
 impl ArchivedRoaringBitmap {
     pub fn iter(&self) -> Iter {
         Iter::new(&self.containers)
+    }
+
+    pub fn len(&self) -> u64 {
+        self.containers.iter().map(|container| container.len()).sum()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.containers.is_empty()
     }
 }
 
