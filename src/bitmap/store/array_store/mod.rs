@@ -369,6 +369,17 @@ impl BitXor<Self> for &ArrayStore {
     }
 }
 
+#[cfg(feature = "rkyv")]
+impl ArchivedArrayStore {
+    pub fn len(&self) -> u64 {
+        self.vec.len() as u64
+    }
+
+    pub fn iter(&self) -> std::slice::Iter<u16> {
+        self.vec.iter()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

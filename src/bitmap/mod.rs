@@ -7,6 +7,8 @@ mod util;
 
 // Order of these modules matters as it determines the `impl` blocks order in
 // the docs
+#[cfg(feature = "rkyv")]
+mod archive;
 mod cmp;
 mod inherent;
 mod iter;

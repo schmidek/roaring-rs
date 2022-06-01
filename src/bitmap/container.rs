@@ -265,3 +265,14 @@ impl fmt::Debug for Container {
         format!("Container<{:?} @ {:?}>", self.len(), self.key).fmt(formatter)
     }
 }
+
+#[cfg(feature = "rkyv")]
+impl<'a> IntoIterator for &'a ArchivedContainer {
+    type Item = u32;
+    type IntoIter = Iter<'a>;
+
+    fn into_iter(self) -> Iter<'a> {
+        let store = &self.store;
+        Iter { key: self.key, inner: store.into_iter() }
+    }
+}

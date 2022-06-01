@@ -456,3 +456,14 @@ impl BitXorAssign<&ArrayStore> for BitmapStore {
         self.len = len as u64;
     }
 }
+
+#[cfg(feature = "rkyv")]
+impl ArchivedBitmapStore {
+    pub fn len(&self) -> u64 {
+        self.len
+    }
+
+    pub fn iter(&self) -> BitmapIter<&[u64; BITMAP_LENGTH]> {
+        BitmapIter::new(&self.bits)
+    }
+}
