@@ -107,6 +107,11 @@ impl Container {
         self.store.intersection_len(&other.store)
     }
 
+    #[cfg(feature = "rkyv")]
+    pub fn intersection_len_archive(&self, other: &ArchivedContainer) -> u64 {
+        self.store.intersection_len_archive(&other.store)
+    }
+
     pub fn min(&self) -> Option<u16> {
         self.store.min()
     }

@@ -248,7 +248,25 @@ impl BitmapStore {
         self.bits.iter().zip(other.bits.iter()).map(|(&a, &b)| (a & b).count_ones() as u64).sum()
     }
 
+    #[cfg(feature = "rkyv")]
+    pub fn intersection_len_bitmap_archive(&self, other: &ArchivedBitmapStore) -> u64 {
+        self.bits.iter().zip(other.bits.iter()).map(|(&a, &b)| (a & b).count_ones() as u64).sum()
+    }
+
     pub fn intersection_len_array(&self, other: &ArrayStore) -> u64 {
+        other
+            .iter()
+            .map(|&index| {
+                let (key, bit) = (key(index), bit(index));
+                let old_w = self.bits[key];
+                let new_w = old_w & (1 << bit);
+                new_w >> bit
+            })
+            .sum::<u64>()
+    }
+
+    #[cfg(feature = "rkyv")]
+    pub fn intersection_len_array_archive(&self, other: &ArchivedArrayStore) -> u64 {
         other
             .iter()
             .map(|&index| {
@@ -513,5 +531,17 @@ impl ArchivedBitmapStore {
 
     pub fn contains(&self, index: u16) -> bool {
         self.bits[key(index)] & (1 << bit(index)) != 0
+    }
+
+    pub fn intersection_len_array_archive(&self, other: &ArrayStore) -> u64 {
+        other
+            .iter()
+            .map(|&index| {
+                let (key, bit) = (key(index), bit(index));
+                let old_w = self.bits[key];
+                let new_w = old_w & (1 << bit);
+                new_w >> bit
+            })
+            .sum::<u64>()
     }
 }

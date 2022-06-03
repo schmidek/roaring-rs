@@ -13,6 +13,9 @@ use rkyv::Deserialize;
 #[cfg(feature = "rkyv")]
 use crate::ArchivedRoaringBitmap;
 
+#[cfg(feature = "rkyv")]
+use crate::bitmap::cmp::ArchivedPairs;
+
 impl RoaringBitmap {
     /// Computes the len of the intersection with the specified other bitmap without creating a
     /// new bitmap.
@@ -42,6 +45,23 @@ impl RoaringBitmap {
             .sum()
     }
 
+    #[cfg(feature = "rkyv")]
+    /// Computes the len of the intersection with the specified other bitmap without creating a
+    /// new bitmap.
+    ///
+    /// This is faster and more space efficient when you're only interested in the cardinality of
+    /// the intersection.
+    pub fn intersection_len_with_archive(&self, other: &ArchivedRoaringBitmap) -> u64 {
+        ArchivedPairs::new(&self.containers, other.containers.iter())
+            .map(|pair| match pair {
+                (Some(..), None) => 0,
+                (None, Some(..)) => 0,
+                (Some(lhs), Some(rhs)) => lhs.intersection_len_archive(rhs),
+                (None, None) => 0,
+            })
+            .sum()
+    }
+
     /// Computes the len of the union with the specified other bitmap without creating a new bitmap.
     ///
     /// This is faster and more space efficient when you're only interested in the cardinality of
@@ -60,6 +80,15 @@ impl RoaringBitmap {
     /// ```
     pub fn union_len(&self, other: &RoaringBitmap) -> u64 {
         self.len().wrapping_add(other.len()).wrapping_sub(self.intersection_len(other))
+    }
+
+    #[cfg(feature = "rkyv")]
+    /// Computes the len of the union with the specified other bitmap without creating a new bitmap.
+    ///
+    /// This is faster and more space efficient when you're only interested in the cardinality of
+    /// the union.
+    pub fn union_len_with_archive(&self, other: &ArchivedRoaringBitmap) -> u64 {
+        self.len().wrapping_add(other.len()).wrapping_sub(self.intersection_len_with_archive(other))
     }
 
     /// Computes the len of the difference with the specified other bitmap without creating a new
@@ -81,6 +110,16 @@ impl RoaringBitmap {
     /// ```
     pub fn difference_len(&self, other: &RoaringBitmap) -> u64 {
         self.len() - self.intersection_len(other)
+    }
+
+    #[cfg(feature = "rkyv")]
+    /// Computes the len of the difference with the specified other bitmap without creating a new
+    /// bitmap.
+    ///
+    /// This is faster and more space efficient when you're only interested in the cardinality of
+    /// the difference.
+    pub fn difference_len_with_archive(&self, other: &ArchivedRoaringBitmap) -> u64 {
+        self.len() - self.intersection_len_with_archive(other)
     }
 
     /// Computes the len of the symmetric difference with the specified other bitmap without

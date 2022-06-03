@@ -134,6 +134,18 @@ impl Store {
         }
     }
 
+    #[cfg(feature = "rkyv")]
+    pub fn intersection_len_archive(&self, other: &ArchivedStore) -> u64 {
+        match (self, other) {
+            (Array(vec1), ArchivedStore::Array(vec2)) => vec1.intersection_len_archive(vec2),
+            (Bitmap(bits1), ArchivedStore::Bitmap(bits2)) => {
+                bits1.intersection_len_bitmap_archive(bits2)
+            }
+            (Array(vec), ArchivedStore::Bitmap(bits)) => bits.intersection_len_array_archive(vec),
+            (Bitmap(bits), ArchivedStore::Array(vec)) => bits.intersection_len_array_archive(vec),
+        }
+    }
+
     pub fn len(&self) -> u64 {
         match self {
             Array(vec) => vec.len(),

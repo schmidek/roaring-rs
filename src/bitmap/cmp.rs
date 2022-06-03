@@ -5,6 +5,9 @@ use std::iter::Peekable;
 use super::container::Container;
 use crate::RoaringBitmap;
 
+#[cfg(feature = "rkyv")]
+use crate::bitmap::container::ArchivedContainer;
+
 impl RoaringBitmap {
     /// Returns true if the set has no elements in common with other. This is equivalent to
     /// checking for an empty intersection.
@@ -134,6 +137,59 @@ where
     J: Iterator<Item = R>,
     L: Borrow<Container>,
     R: Borrow<Container>,
+{
+    type Item = (Option<L>, Option<R>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match (self.left.peek(), self.right.peek()) {
+            (None, None) => None,
+            (Some(_), None) => Some((self.left.next(), None)),
+            (None, Some(_)) => Some((None, self.right.next())),
+            (Some(c1), Some(c2)) => match c1.borrow().key.cmp(&c2.borrow().key) {
+                Ordering::Equal => Some((self.left.next(), self.right.next())),
+                Ordering::Less => Some((self.left.next(), None)),
+                Ordering::Greater => Some((None, self.right.next())),
+            },
+        }
+    }
+}
+
+#[cfg(feature = "rkyv")]
+pub struct ArchivedPairs<I, J, L, R>
+where
+    I: Iterator<Item = L>,
+    J: Iterator<Item = R>,
+    L: Borrow<Container>,
+    R: Borrow<ArchivedContainer>,
+{
+    left: Peekable<I>,
+    right: Peekable<J>,
+}
+
+#[cfg(feature = "rkyv")]
+impl<I, J, L, R> ArchivedPairs<I, J, L, R>
+where
+    I: Iterator<Item = L>,
+    J: Iterator<Item = R>,
+    L: Borrow<Container>,
+    R: Borrow<ArchivedContainer>,
+{
+    pub fn new<A, B>(left: A, right: B) -> ArchivedPairs<I, J, L, R>
+    where
+        A: IntoIterator<Item = L, IntoIter = I>,
+        B: IntoIterator<Item = R, IntoIter = J>,
+    {
+        ArchivedPairs { left: left.into_iter().peekable(), right: right.into_iter().peekable() }
+    }
+}
+
+#[cfg(feature = "rkyv")]
+impl<I, J, L, R> Iterator for ArchivedPairs<I, J, L, R>
+where
+    I: Iterator<Item = L>,
+    J: Iterator<Item = R>,
+    L: Borrow<Container>,
+    R: Borrow<ArchivedContainer>,
 {
     type Item = (Option<L>, Option<R>);
 

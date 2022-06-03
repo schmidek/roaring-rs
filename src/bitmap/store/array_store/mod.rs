@@ -165,6 +165,16 @@ impl ArrayStore {
         visitor.into_inner()
     }
 
+    #[cfg(feature = "rkyv")]
+    pub fn intersection_len_archive(&self, other: &ArchivedArrayStore) -> u64 {
+        let mut visitor = CardinalityCounter::new();
+        #[cfg(feature = "simd")]
+        vector::and(self.as_slice(), other.as_slice(), &mut visitor);
+        #[cfg(not(feature = "simd"))]
+        scalar::and(self.as_slice(), other.as_slice(), &mut visitor);
+        visitor.into_inner()
+    }
+
     pub fn to_bitmap_store(&self) -> BitmapStore {
         let mut bits = Box::new([0; BITMAP_LENGTH]);
         let len = self.len() as u64;
