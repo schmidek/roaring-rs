@@ -101,6 +101,16 @@ impl RoaringBitmap {
             .wrapping_sub(intersection_len)
             .wrapping_sub(intersection_len)
     }
+
+    /// An `union` between two sets.
+    pub fn bitor_assign_on_bitmaps(&mut self, mut rhs: RoaringBitmap) {
+        // We make sure that we apply the union operation on the biggest map.
+        if self.len() < rhs.len() {
+            mem::swap(self, &mut rhs);
+        }
+
+        crate::bitmap::multiops::merge_container_owned(&mut self.containers, rhs.containers, |a, b| *a |= b);
+    }
 }
 
 impl BitOr<RoaringBitmap> for RoaringBitmap {

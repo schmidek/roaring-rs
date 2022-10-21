@@ -267,7 +267,7 @@ fn try_multi_xor_owned<E>(
     Ok(RoaringBitmap { containers })
 }
 
-fn merge_container_owned(
+pub(crate) fn merge_container_owned(
     lhs: &mut Vec<Container>,
     rhs: Vec<Container>,
     op: impl Fn(&mut Store, Store),
@@ -383,7 +383,7 @@ fn try_multi_xor_ref<'a, E: 'a>(
     Ok(RoaringBitmap { containers })
 }
 
-fn merge_container_ref<'a>(
+pub(crate) fn merge_container_ref<'a>(
     containers: &mut Vec<Cow<'a, Container>>,
     rhs: &'a [Container],
     op: impl Fn(&mut Store, &Store),
