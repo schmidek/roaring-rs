@@ -278,7 +278,11 @@ pub(crate) fn merge_container_owned(
             Ok(loc) => {
                 let lhs = &mut lhs[loc];
                 match (&lhs.store, &rhs.store) {
-                    (Store::Array(..), Store::Array(..)) => lhs.store = lhs.store.to_bitmap(),
+                    (Store::Array(a1), Store::Array(a2)) => {
+                        if a1.len() + a2.len() > 128 {
+                            lhs.store = lhs.store.to_bitmap()
+                        }
+                    },
                     (Store::Array(..), Store::Bitmap(..)) => mem::swap(lhs, &mut rhs),
                     _ => (),
                 };
